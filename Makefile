@@ -25,11 +25,6 @@ lint: install-lint
 bindir:
 	mkdir -p ${BINDIR}
 
-generate: install-mockgen
-	${MOCKGEN} -source=internal/http-server/handlers/order/get/get.go -destination=internal/http-server/handlers/order/get/mocks/order_getter.go
-	${MOCKGEN} -source=internal/cache/cache.go -destination=internal/cache/mocks/cache_mock.go
-	# ${MOCKGEN} -source=internal/database/database.go -destination=internal/mocks/database/database_mocks.go
-
 format:
 	go fmt ./...
 
