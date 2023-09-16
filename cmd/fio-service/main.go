@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -42,7 +42,9 @@ func main() {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 
-		fmt.Fprint(w, "Pong")
+		_ = json.NewEncoder(w).Encode(map[string]bool{
+			"pong": true,
+		})
 	})
 
 	// server configuration
