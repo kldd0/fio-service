@@ -2,4 +2,4 @@ config/config.yaml
 config/pg.env
 config/redis.env
 bin
-./kafka
+kafka
