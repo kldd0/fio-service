@@ -9,42 +9,50 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/kldd0/fio-service/internal/logs"
-	message "github.com/kldd0/fio-service/internal/model/domain_models"
 	"go.uber.org/zap"
 )
 
 var (
 	develMode = flag.Bool("devel", false, "development mode")
+
+	KafkaBrokers = []string{"localhost:29092"}
 )
 
 var Producer sarama.SyncProducer
 
 func main() {
 	flag.Parse()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	// setup logger
 	logs.InitLogger(*develMode)
 
-	KafkaBrokers := []string{"localhost:29092"}
 	err := NewSyncProducer(KafkaBrokers)
 	if err != nil {
 		logs.Logger.Fatal("Error: sync producer init failed", zap.Error(err))
 	}
 
-	msg := message.Message{
+	type Message struct {
+		Name       string `json:"name"`
+		Surname    string `json:"surname"`
+		Patronymic string `json:"patronymic,omitempty"`
+	}
+
+	msg := Message{
 		Name:       "Dmitriy",
 		Surname:    "Ushakov",
 		Patronymic: "Vasilevich",
 	}
 
 	result, _ := json.Marshal(msg)
+	fmt.Println(result)
 
 	partition, offset, err := Producer.SendMessage(
 		&sarama.ProducerMessage{
 			Topic: "fio-topic",
-			Value: sarama.ByteEncoder(result),
+			Key:   sarama.StringEncoder("Data"),
+			Value: sarama.ByteEncoder("garbage"),
 		})
 
 	if err != nil {

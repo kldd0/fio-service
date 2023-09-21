@@ -1,4 +1,4 @@
-package message
+package domain_models
 
 type Message struct {
 	Name       string `json:"name"`

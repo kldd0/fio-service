@@ -1,8 +1,12 @@
 package services
 
-import "github.com/kldd0/fio-service/internal/storage"
+import (
+	"github.com/IBM/sarama"
+	"github.com/kldd0/fio-service/internal/storage"
+)
 
 type ServiceProvider struct {
-	Db storage.Storage
+	Db   storage.Storage
+	Prod sarama.SyncProducer
 	// FillService *
 }

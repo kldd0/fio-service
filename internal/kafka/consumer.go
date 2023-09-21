@@ -1,12 +1,14 @@
-package consumer
+package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/IBM/sarama"
 	"github.com/kldd0/fio-service/internal/logs"
+	"github.com/kldd0/fio-service/internal/model/domain_models"
 	"github.com/kldd0/fio-service/internal/services"
 	"go.uber.org/zap"
 )
@@ -14,12 +16,11 @@ import (
 var (
 	KafkaTopic         = "fio-topic"
 	KafkaConsumerGroup = "fio-consumer-group"
-	BrokersList        = []string{"kafka:9092"}
 	Assignor           = "range"
 )
 
 type Consumer struct {
-	// services services.ServiceProvider
+	services services.ServiceProvider
 }
 
 func (consumer *Consumer) Setup(sarama.ConsumerGroupSession) error {
@@ -38,6 +39,25 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 		logs.Logger.Info("Message received", zap.String("msg", string(message.Value)))
 
 		session.MarkMessage(message, "")
+
+		// if the key of message is "Status" => processing only "Data"
+		if string(message.Key) != "Data" {
+			continue
+		}
+
+		data := domain_models.Message{}
+		err := json.Unmarshal(message.Value, &data)
+		// responding when the message is incorrect
+		if err != nil {
+			consumer.services.Prod.SendMessage(&sarama.ProducerMessage{
+				Topic: "fio-topic",
+				Key:   sarama.StringEncoder("Status"),
+				Value: sarama.ByteEncoder("FIO_FAILED"),
+			})
+			logs.Logger.Info("FIO_FAILED replied")
+		}
+
+		// processing correct message...
 	}
 
 	return nil
@@ -46,7 +66,9 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 func StartConsumerGroup(ctx context.Context, brokerList []string, services services.ServiceProvider) error {
 	const op = "kafka.consumer.StartConsumerGroup"
 
-	consumerGroupHandler := Consumer{}
+	consumerGroupHandler := Consumer{
+		services: services,
+	}
 
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_5_0_0
@@ -73,5 +95,6 @@ func StartConsumerGroup(ctx context.Context, brokerList []string, services servi
 	if err != nil {
 		return fmt.Errorf("%s: consuming via handler: %w", op, err)
 	}
+
 	return nil
 }

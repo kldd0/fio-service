@@ -16,7 +16,7 @@ import (
 
 	"github.com/kldd0/fio-service/internal/clients/redis"
 	"github.com/kldd0/fio-service/internal/config"
-	consumer "github.com/kldd0/fio-service/internal/kafka"
+	"github.com/kldd0/fio-service/internal/kafka"
 	"github.com/kldd0/fio-service/internal/logs"
 	"github.com/kldd0/fio-service/internal/services"
 	"github.com/kldd0/fio-service/internal/storage/postgres"
@@ -57,12 +57,19 @@ func main() {
 		logs.Logger.Fatal("Error: redis init failed:", zap.Error(err))
 	}
 
+	// setup producer for responding
+	err = kafka.NewSyncProducer(config.KafkaBrokers())
+	if err != nil {
+		logs.Logger.Fatal("Error: sync producer init failed", zap.Error(err))
+	}
+
 	provider := services.ServiceProvider{
-		Db: db,
+		Db:   db,
+		Prod: kafka.Producer,
 	}
 
 	// setup consumer group
-	err = consumer.StartConsumerGroup(ctx, config.KafkaBrokers(), provider)
+	err = kafka.StartConsumerGroup(ctx, config.KafkaBrokers(), provider)
 	if err != nil {
 		logs.Logger.Fatal("Error: consumer group is failed:", zap.Error(err))
 	}

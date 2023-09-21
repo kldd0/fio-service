@@ -4,7 +4,7 @@ LINTVER=v1.51.0
 LINTBIN=${BINDIR}/lint_${GOVER}_${LINTVER}
 MOCKGEN=${BINDIR}/mockgen_${GOVER}
 PACKAGE=github.com/kldd0/fio-service/cmd/fio-service
-PROD_PACKAGE=github.com/kldd0/fio-service/cmd/fioProducer
+PROD_PACKAGE=github.com/kldd0/fio-service/cmd/fio-producer
 
 all: format build test lint
 
