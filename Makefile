@@ -4,6 +4,7 @@ LINTVER=v1.51.0
 LINTBIN=${BINDIR}/lint_${GOVER}_${LINTVER}
 MOCKGEN=${BINDIR}/mockgen_${GOVER}
 PACKAGE=github.com/kldd0/fio-service/cmd/fio-service
+PROD_PACKAGE=github.com/kldd0/fio-service/cmd/fioProducer
 
 all: format build test lint
 
@@ -16,6 +17,12 @@ test:
 run:
 	go run ${PACKAGE}
 
+produce:
+	go run ${PROD_PACKAGE}
+
+run-dev:
+	go run ${PACKAGE} -devel
+
 bin-run:
 	./bin/app
 
@@ -24,6 +31,11 @@ lint: install-lint
 
 bindir:
 	mkdir -p ${BINDIR}
+
+generate: install-mockgen
+	${MOCKGEN} -source=internal/http-server/handlers/order/get/get.go -destination=internal/http-server/handlers/order/get/mocks/order_getter.go
+	${MOCKGEN} -source=internal/cache/cache.go -destination=internal/cache/mocks/cache_mock.go
+	# ${MOCKGEN} -source=internal/database/database.go -destination=internal/mocks/database/database_mocks.go
 
 format:
 	go fmt ./...

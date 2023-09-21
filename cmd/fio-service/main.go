@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"flag"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,21 +12,59 @@ import (
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
+	"github.com/kldd0/fio-service/internal/clients/redis"
 	"github.com/kldd0/fio-service/internal/config"
+	consumer "github.com/kldd0/fio-service/internal/kafka"
+	"github.com/kldd0/fio-service/internal/logs"
+	"github.com/kldd0/fio-service/internal/services"
+	"github.com/kldd0/fio-service/internal/storage/postgres"
+)
+
+var (
+	develMode = flag.Bool("devel", false, "development mode")
 )
 
 func main() {
+	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// setup logger [dev] -- debug
-	log := log.Default()
+	// setup logger
+	logs.InitLogger(*develMode)
 
-	// config initialization
+	// setup config
 	config, err := config.New()
 	if err != nil {
-		log.Fatal("Error: failed initializing config: ", err)
+		logs.Logger.Fatal("Error: config init failed:", zap.Error(err))
+	}
+
+	// setup db
+	db, err := postgres.New(config.DbUri())
+	if err != nil {
+		logs.Logger.Fatal("Error: failed connecting to database:", zap.Error(err))
+	}
+	defer db.Close()
+
+	if err := db.InitDB(ctx); err != nil {
+		logs.Logger.Fatal("Error: storage init failed:", zap.Error(err))
+	}
+
+	// setup redis
+	_, err = redis.New(ctx, config)
+	if err != nil {
+		logs.Logger.Fatal("Error: redis init failed:", zap.Error(err))
+	}
+
+	provider := services.ServiceProvider{
+		Db: db,
+	}
+
+	// setup consumer group
+	err = consumer.StartConsumerGroup(ctx, config.KafkaBrokers(), provider)
+	if err != nil {
+		logs.Logger.Fatal("Error: consumer group is failed:", zap.Error(err))
 	}
 
 	// http router
@@ -66,18 +104,18 @@ func main() {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
-		log.Print("Stopping server")
+		logs.Info("Stopping server")
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("HTTP Server Shutdown Error: %v", err)
+			logs.Info("HTTP Server Shutdown Error:", zap.Error(err))
 		}
 		close(done)
 	}()
 
-	log.Printf("Starting HTTP server on: %s", config.HTTPAddr())
+	logs.Info("Info: Starting HTTP server on " + config.HTTPAddr())
 
 	// start http server
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-		log.Fatal("Error: HTTP server ListenAndServe error: ", err)
+		logs.Logger.Fatal("Error: HTTP server ListenAndServe error:", zap.Error(err))
 	}
 
 	<-done

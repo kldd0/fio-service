@@ -8,18 +8,27 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const configFile = "data/config.yaml"
+const configFile = "config/config.yaml"
 
 type Config struct {
-	Env        string `yaml:"env"`
-	StorageDSN string `yaml:"storage_dsn"`
+	DBUri string `yaml:"db_uri"`
+
 	HTTPServer `yaml:"http_server"`
+
+	Kafka `yaml:"kafka"`
+
+	RedisUri  string `yaml:"redis_uri"`
+	RedisPass string `yaml:"redis_pass"`
 }
 
 type HTTPServer struct {
 	Address     string        `yaml:"address"`
 	Timeout     time.Duration `yaml:"timeout"`
 	IdleTimeout time.Duration `yaml:"idle_timeout"`
+}
+
+type Kafka struct {
+	Brokers []string
 }
 
 type Service struct {
@@ -44,8 +53,8 @@ func New() (*Service, error) {
 	return s, nil
 }
 
-func (s Service) DSN() string {
-	return s.config.StorageDSN
+func (s Service) DbUri() string {
+	return s.config.DBUri
 }
 
 func (s Service) HTTPAddr() string {
@@ -58,4 +67,16 @@ func (s Service) Timeout() time.Duration {
 
 func (s Service) IdleTimeout() time.Duration {
 	return s.config.HTTPServer.IdleTimeout
+}
+
+func (s Service) RedisUri() string {
+	return s.config.RedisUri
+}
+
+func (s Service) RedisPass() string {
+	return s.config.RedisPass
+}
+
+func (s Service) KafkaBrokers() []string {
+	return s.config.Kafka.Brokers
 }

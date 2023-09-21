@@ -13,4 +13,4 @@ COPY ./ ./
 
 RUN make build
 
-CMD make bin-run
+ENTRYPOINT ["./bin/app"]
