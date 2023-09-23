@@ -7,10 +7,16 @@ import (
 	"time"
 )
 
-type FIOApiClient struct {
+type FioApi interface {
+	GetAge(name string) (age int, err error)
+	GetGender(name string) (gender string, err error)
+	GetNationality(name string) (nationality string, err error)
 }
 
-func (api FIOApiClient) GetAge(name string) (age int, err error) {
+type FioAPIClient struct {
+}
+
+func (api FioAPIClient) GetAge(name string) (age int, err error) {
 	const op = "model.api.fio_data.GetAge"
 
 	client := http.Client{Timeout: time.Second * 5}
@@ -35,7 +41,7 @@ func (api FIOApiClient) GetAge(name string) (age int, err error) {
 	return int(result["age"].(float64)), nil
 }
 
-func (api FIOApiClient) GetGender(name string) (gender string, err error) {
+func (api FioAPIClient) GetGender(name string) (gender string, err error) {
 	const op = "model.api.fio_data.GetGender"
 
 	client := http.Client{Timeout: time.Second * 5}
@@ -60,7 +66,7 @@ func (api FIOApiClient) GetGender(name string) (gender string, err error) {
 	return result["gender"].(string), nil
 }
 
-func (api FIOApiClient) GetNationality(name string) (nationality string, err error) {
+func (api FioAPIClient) GetNationality(name string) (nationality string, err error) {
 	const op = "model.api.fio_data.GetGender"
 
 	client := http.Client{Timeout: time.Second * 5}
