@@ -34,33 +34,59 @@ func (consumer *Consumer) Cleanup(sarama.ConsumerGroupSession) error {
 }
 
 func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	_ = context.Background()
-	for message := range claim.Messages() {
-		logs.Logger.Info("Message received", zap.String("msg", string(message.Value)))
+	const op = "kafka.consumer.ConsumeClaim"
 
-		session.MarkMessage(message, "")
+	ctx := context.Background()
+	for {
+		select {
+		case message := <-claim.Messages():
+			logs.Logger.Info("Message received", zap.String("msg", string(message.Value)))
 
-		// if the key of message is "Status" => processing only "Data"
-		if string(message.Key) != "Data" {
-			continue
+			session.MarkMessage(message, "")
+
+			// if the key of message is "Status" => processing only "Data"
+			if string(message.Key) != "Data" {
+				continue
+			}
+
+			msg := domain_models.Message{}
+			err := json.Unmarshal(message.Value, &msg)
+
+			// responding when the message is incorrect
+			if err != nil || msg.Name == "" || msg.Surname == "" {
+				consumer.services.Prod.SendMessage(&sarama.ProducerMessage{
+					Topic: "fio-topic",
+					Key:   sarama.StringEncoder("Status"),
+					Value: sarama.ByteEncoder("FIO_FAILED"),
+				})
+
+				logs.Logger.Info("FIO_FAILED replied")
+				continue
+			}
+
+			// processing correct message
+			fio := &domain_models.FioStruct{
+				Name:       msg.Name,
+				Surname:    msg.Surname,
+				Patronymic: msg.Patronymic,
+			}
+
+			err = consumer.services.APIServices.FillModel(fio)
+			if err != nil {
+				logs.Logger.Info("Error: "+op+": failed saving entry", zap.Error(err))
+				continue
+			}
+
+			err = consumer.services.Db.Save(ctx, fio)
+			if err != nil {
+				logs.Logger.Info("Error: "+op+": failed saving entry", zap.Error(err))
+				continue
+			}
+		case <-ctx.Done():
+			logs.Logger.Info("Context is done, stopping consumer group")
+			return nil
 		}
-
-		data := domain_models.Message{}
-		err := json.Unmarshal(message.Value, &data)
-		// responding when the message is incorrect
-		if err != nil {
-			consumer.services.Prod.SendMessage(&sarama.ProducerMessage{
-				Topic: "fio-topic",
-				Key:   sarama.StringEncoder("Status"),
-				Value: sarama.ByteEncoder("FIO_FAILED"),
-			})
-			logs.Logger.Info("FIO_FAILED replied")
-		}
-
-		// processing correct message...
 	}
-
-	return nil
 }
 
 func StartConsumerGroup(ctx context.Context, brokerList []string, services services.ServiceProvider) error {

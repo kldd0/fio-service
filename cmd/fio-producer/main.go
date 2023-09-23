@@ -46,13 +46,13 @@ func main() {
 	}
 
 	result, _ := json.Marshal(msg)
-	fmt.Println(result)
 
+	fmt.Println(result)
 	partition, offset, err := Producer.SendMessage(
 		&sarama.ProducerMessage{
 			Topic: "fio-topic",
 			Key:   sarama.StringEncoder("Data"),
-			Value: sarama.ByteEncoder("garbage"),
+			Value: sarama.ByteEncoder(result),
 		})
 
 	if err != nil {

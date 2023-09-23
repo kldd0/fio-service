@@ -52,7 +52,7 @@ func (s *Storage) InitDB(ctx context.Context) error {
 	return nil
 }
 
-func (s *Storage) Save(ctx context.Context, fio_struct domain_models.FioStruct) error {
+func (s *Storage) Save(ctx context.Context, fio_struct *domain_models.FioStruct) error {
 	const op = "storage.postgres.Save"
 
 	q := `INSERT INTO fio_table (name, surname, patronymic, age, gender, nationality) VALUES ($1, $2, $3, $4, $5, $6)`
@@ -72,7 +72,7 @@ func (s *Storage) Save(ctx context.Context, fio_struct domain_models.FioStruct) 
 func (s *Storage) Get(ctx context.Context, name, surname string) ([]domain_models.FioStruct, error) {
 	const op = "storage.postgres.Get"
 
-	q := `SELECT * FROM fio_table WHERE name=$1 AND surname=$2`
+	q := `SELECT * FROM fio_table WHERE name = $1 AND surname = $2`
 
 	stmt, err := s.db.PrepareContext(ctx, q)
 	if err != nil {

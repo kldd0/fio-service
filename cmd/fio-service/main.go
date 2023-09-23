@@ -18,6 +18,7 @@ import (
 	"github.com/kldd0/fio-service/internal/config"
 	"github.com/kldd0/fio-service/internal/kafka"
 	"github.com/kldd0/fio-service/internal/logs"
+	"github.com/kldd0/fio-service/internal/model/api"
 	"github.com/kldd0/fio-service/internal/services"
 	"github.com/kldd0/fio-service/internal/storage/postgres"
 )
@@ -64,15 +65,18 @@ func main() {
 	}
 
 	provider := services.ServiceProvider{
-		Db:   db,
-		Prod: kafka.Producer,
+		Db:          db,
+		Prod:        kafka.Producer,
+		APIServices: api.FioAPIClient{},
 	}
 
 	// setup consumer group
-	err = kafka.StartConsumerGroup(ctx, config.KafkaBrokers(), provider)
-	if err != nil {
-		logs.Logger.Fatal("Error: consumer group is failed:", zap.Error(err))
-	}
+	go func() {
+		err = kafka.StartConsumerGroup(ctx, config.KafkaBrokers(), provider)
+		if err != nil {
+			logs.Logger.Fatal("Error: consumer group is failed:", zap.Error(err))
+		}
+	}()
 
 	// http router
 	router := chi.NewRouter()

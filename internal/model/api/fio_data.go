@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/kldd0/fio-service/internal/model/domain_models"
 )
 
 type FioApi interface {
 	GetAge(name string) (age int, err error)
 	GetGender(name string) (gender string, err error)
 	GetNationality(name string) (nationality string, err error)
+
+	FillModel(model *domain_models.FioStruct) error
 }
 
 type FioAPIClient struct {
@@ -90,4 +94,29 @@ func (api FioAPIClient) GetNationality(name string) (nationality string, err err
 
 	nationality = result["country"].([]interface{})[0].(map[string]interface{})["country_id"].(string)
 	return
+}
+
+func (api FioAPIClient) FillModel(model *domain_models.FioStruct) error {
+	const op = "model.api.fio_data.FillModel"
+
+	age, err := api.GetAge(model.Name)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	gender, err := api.GetGender(model.Name)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	nationality, err := api.GetNationality(model.Name)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	model.Age = age
+	model.Gender = gender
+	model.Nationality = nationality
+
+	return nil
 }
