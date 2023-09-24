@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/kldd0/fio-service/internal/model/domain_models"
@@ -62,30 +63,59 @@ func (s *Storage) Save(ctx context.Context, fio_struct *domain_models.FioStruct)
 		return fmt.Errorf("%s: prepare statement: %w", op, err)
 	}
 
-	if _, err := stmt.ExecContext(ctx, fio_struct.Name, fio_struct.Surname, fio_struct.Patronymic, fio_struct.Age, fio_struct.Gender, fio_struct.Nationality); err != nil {
+	if _, err := stmt.ExecContext(
+		ctx, fio_struct.Name,
+		fio_struct.Surname,
+		fio_struct.Patronymic,
+		fio_struct.Age,
+		fio_struct.Gender,
+		fio_struct.Nationality); err != nil {
 		return fmt.Errorf("%s: saving entry: %w", op, err)
 	}
 
 	return nil
 }
 
-func (s *Storage) Get(ctx context.Context, name, surname string) ([]domain_models.FioStruct, error) {
+func (s *Storage) Get(ctx context.Context, filter string, target interface{}, limit, offset int) ([]domain_models.FioStruct, error) {
 	const op = "storage.postgres.Get"
 
-	q := `SELECT * FROM fio_table WHERE name = $1 AND surname = $2`
+	switch filter {
+	case "name", "surname", "patronymic", "gender", "nationality":
+		target = target.(string)
+	case "id", "age":
+		target = target.(int)
+	}
+
+	q := `SELECT * FROM fio_table WHERE name=$1 ORDER BY id LIMIT $2 OFFSET $3`
 
 	stmt, err := s.db.PrepareContext(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("%s: prepare statement: %w", op, err)
 	}
 
-	var result []domain_models.FioStruct
+	result := make([]domain_models.FioStruct, 0)
 
-	err = stmt.QueryRowContext(ctx, name, surname).Scan(&result)
-
+	rows, err := stmt.QueryContext(ctx, target, limit, offset)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, storage.ErrEntryDoesntExists
+			return nil, storage.ErrEntryDoesntExist
+		}
+
+		for rows.Next() {
+			var fio domain_models.FioStruct
+			err = rows.Scan(
+				&fio.ID,
+				&fio.Name,
+				&fio.Surname,
+				&fio.Patronymic,
+				&fio.Age,
+				&fio.Gender,
+				&fio.Nationality,
+			)
+			if err != nil {
+				log.Fatalf("Scan error: %s\n", err)
+			}
+			result = append(result, fio)
 		}
 
 		return nil, fmt.Errorf("%s: execute statement: %w", op, err)
@@ -93,6 +123,8 @@ func (s *Storage) Get(ctx context.Context, name, surname string) ([]domain_model
 
 	return result, nil
 }
+
+// func (s *Storage) GetByID(ctx context.Context, id int) (domain_models.FioStruct, error)
 
 func (s *Storage) Close() error {
 	return s.db.Close()

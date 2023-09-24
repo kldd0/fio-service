@@ -16,6 +16,7 @@ import (
 
 	"github.com/kldd0/fio-service/internal/clients/redis"
 	"github.com/kldd0/fio-service/internal/config"
+	"github.com/kldd0/fio-service/internal/http-server/handlers/fio/get"
 	"github.com/kldd0/fio-service/internal/kafka"
 	"github.com/kldd0/fio-service/internal/logs"
 	"github.com/kldd0/fio-service/internal/model/api"
@@ -94,6 +95,14 @@ func main() {
 		_ = json.NewEncoder(w).Encode(map[string]bool{
 			"pong": true,
 		})
+	})
+
+	router.Route("/people", func(r chi.Router) {
+		r.Get("/", get.New(logs.Logger, db))
+
+		// r.Post("/{id}", http.NotFound)
+		// r.Put("/{id}", http.NotFound)
+		// r.Delete("/{id}", http.NotFound)
 	})
 
 	// server configuration
